@@ -16,10 +16,11 @@ CREATE TABLE dashboardcandidate (
     phone_no VARCHAR(15),
     email VARCHAR(255) UNIQUE NOT NULL
 );
-SELECT * FROM dashboardcandidate;
 
 ALTER TABLE dashboardcandidate 
 MODIFY COLUMN fresher_experience VARCHAR(255) NOT NULL;
+
+SELECT * FROM dashboardcandidate;
 
 
 

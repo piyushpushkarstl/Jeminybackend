@@ -1,8 +1,23 @@
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+require('dotenv').config(); // Load environment variables from .env file
 const multer = require('multer');
-const { createUser, findUserByEmail } = require('../backend/models/user');
+const { createUser, findUserByEmail, updateOtp } = require('../backend/models/user');
+
+// Email configuration for OTP
+const transporter = nodemailer.createTransport({
+    service: 'Gmail',
+    auth: {
+        user: process.env.MAIL_USERNAME, // Load from environment variable
+        pass: process.env.MAIL_PASSWORD, // Load from environment variable
+    },
+    tls: {
+        rejectUnauthorized: false, // Optional: Disable TLS checks for testing
+    },
+});
 
 // Email validation regex
 const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
@@ -27,7 +42,7 @@ const storage = multer.diskStorage({
     },
 });
 
-// Multer file filter for PDF and Word documents
+// Multer file filter for PDFs and Word documents
 const fileFilter = (req, file, cb) => {
     const allowedTypes = [
         'application/pdf',
@@ -56,17 +71,14 @@ const signupUser = async (req, res) => {
         return res.status(400).json({ error: 'All fields, including resume, are required' });
     }
 
-    // Email validation
     if (!emailRegex.test(email)) {
         return res.status(400).json({ error: 'Invalid email format' });
     }
 
-    // Phone validation
     if (!phoneRegex.test(phone)) {
         return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
     }
 
-    // Password validation
     if (!passwordRegex.test(password)) {
         return res.status(400).json({
             error: 'Password must be at least 8 characters long, contain at least one uppercase letter, one number, and one special character',
@@ -74,6 +86,7 @@ const signupUser = async (req, res) => {
     }
 
     try {
+        // Check if the user already exists
         const existingUser = await findUserByEmail(email);
         if (existingUser) {
             return res.status(400).json({ error: 'Email is already registered' });
@@ -81,23 +94,70 @@ const signupUser = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Read the resume file
-        const resumePath = path.join(__dirname, '..', 'uploads', req.file.filename);
-        const resumeBuffer = fs.readFileSync(resumePath);
+        // Generate OTP
+        const otp = String(crypto.randomInt(100000, 999999)); // Ensure it's a 6-digit string
 
-        // Save user data, including resume
-        const userId = await createUser(name, email, phone, hashedPassword, resumeBuffer);
+        const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // OTP expires in 5 minutes
 
-        // Clean up uploaded file after saving to DB
-        fs.unlinkSync(resumePath);
+        // Save user data, including the OTP and expiry, to the database
+        const userId = await createUser(name, email, phone, hashedPassword, otp, otpExpiry);
 
-        res.status(201).json({ message: 'User created successfully', userId });
+        // Send OTP via email
+        await transporter.sendMail({
+            from: process.env.MAIL_DEFAULT_SENDER, // Load default sender from environment variable
+            to: email,
+            subject: 'Your Signup OTP',
+            text: `Your OTP for signup is: ${otp}`,
+        });
+
+        res.status(201).json({
+            message: 'User created successfully. OTP sent to your email for verification.',
+            userId,
+        });
     } catch (error) {
         res.status(500).json({ error: 'Failed to create user', details: error.message });
     }
 };
 
-// Signin Handler
+// OTP Verification Handler
+const verifyOtp = async (req, res) => {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+        return res.status(400).json({ error: 'Email and OTP are required' });
+    }
+
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    try {
+        // Retrieve the user's OTP and expiry from the database
+        const user = await findUserByEmail(email);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const { otp: storedOtp, otp_expiry: otpExpiry } = user;
+
+        if (!storedOtp || new Date(otpExpiry) < new Date()) {
+            return res.status(404).json({ error: 'OTP not found or expired' });
+        }
+
+        if (storedOtp !== otp.toString()) {
+            return res.status(400).json({ error: 'Invalid OTP' });
+        }
+
+        // OTP verified successfully; clear OTP and expiry
+        await updateOtp(email, null, null);
+
+        res.status(200).json({ message: 'OTP verified successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'OTP verification failed', details: error.message });
+    }
+};
+
+// Signin Handler (unchanged)
 const signinUser = async (req, res) => {
     const { email, password } = req.body;
 
@@ -105,16 +165,8 @@ const signinUser = async (req, res) => {
         return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Email validation
     if (!emailRegex.test(email)) {
         return res.status(400).json({ error: 'Invalid email format' });
-    }
-
-    // Password validation
-    if (!passwordRegex.test(password)) {
-        return res.status(400).json({
-            error: 'Invalid password format. Password must be at least 8 characters long, contain at least one uppercase letter, one number, and one special character',
-        });
     }
 
     try {
@@ -134,4 +186,4 @@ const signinUser = async (req, res) => {
     }
 };
 
-module.exports = { signupUser, signinUser, upload };
+module.exports = { signupUser, signinUser, verifyOtp, upload };

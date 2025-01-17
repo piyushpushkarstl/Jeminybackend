@@ -1,12 +1,12 @@
 const db = require('../../db');
 
 const getAllPersonalDetails = async () => {
-    const [rows] = await db.query('SELECT * FROM Personal_Details');
+    const [rows] = await db.query('SELECT * FROM personaldetails');
     return rows;
 };
 
 const getPersonalDetailsById = async (candidateId) => {
-    const [rows] = await db.query('SELECT * FROM Personal_Details WHERE candidate_id = ?', [candidateId]);
+    const [rows] = await db.query('SELECT * FROM personaldetails WHERE candidate_id = ?', [candidateId]);
     return rows;
 };
 
@@ -27,7 +27,7 @@ const addPersonalDetails = async (
     languageProficiency
 ) => {
     const [result] = await db.query(
-        `INSERT INTO Personal_Details (
+        `INSERT INTO personaldetails (
             candidate_id, 
             gender, 
             more_information, 
@@ -64,7 +64,7 @@ const addPersonalDetails = async (
 };
 
 const deletePersonalDetails = async (id) => {
-    const [result] = await db.query('DELETE FROM Personal_Details WHERE id = ?', [id]);
+    const [result] = await db.query('DELETE FROM personaldetails WHERE id = ?', [id]);
     return result.affectedRows;
 };
 
