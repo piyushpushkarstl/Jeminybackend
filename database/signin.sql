@@ -13,9 +13,13 @@ ALTER TABLE signin MODIFY otp VARCHAR(6) DEFAULT NULL;
 ALTER TABLE signin MODIFY otp_expiry DATETIME DEFAULT NULL;
 ALTER TABLE signin MODIFY otp CHAR(6);
 
-
 SELECT * FROM signin; 
 DESCRIBE signin;
 INSERT INTO signin (name, email, phone, password, resume, otp, otp_expiry)
 VALUES ('Test Name', 'test@email.com', '1234567890', 'hashed_password', 'resume_data', '123456', NOW());
+SHOW CREATE TABLE signin;
+SELECT * FROM signin WHERE candidate_id = 9;
+DELETE FROM signin WHERE candidate_id = 27;
+
+
 
