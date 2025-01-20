@@ -113,6 +113,15 @@ const signupUser = async (req, res) => {
         const resumeBuffer = req.file.buffer; // Save the uploaded resume as binary
 
         await pool.query(sql, [name, email, hashedPassword, phone, resumeBuffer, otp, otp_expiry]);
+        await connection.query(sql, [
+            name,
+            email,
+            hashedPassword,
+            phone,
+            req.file.buffer, // Pass the buffer directly for longblob
+            otp,
+            otp_expiry,
+        ]);
 
         // Send OTP via email
         await transporter.sendMail({
