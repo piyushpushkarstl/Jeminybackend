@@ -4,7 +4,7 @@ USE candidateprofile;
 CREATE TABLE personaldetails (
     candidate_id INT NOT NULL,
     gender ENUM('Male', 'Female', 'Other'),
-    more_information TEXT,
+    more_information TEXT,dashboardcandidate
     marital_status ENUM('Single', 'Married', 'Divorced', 'Widowed'),
     dob DATE,
     category VARCHAR(255),
@@ -18,3 +18,5 @@ CREATE TABLE personaldetails (
     language_proficiency TEXT,
     FOREIGN KEY (candidate_id) REFERENCES dashboardcandidate(candidate_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
+SELECT * FROM personaldetails;
+SHOW TABLES;

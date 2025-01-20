@@ -32,7 +32,6 @@ app.use(bodyParser.json());
 // Register routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-
 app.use('/api/resume', resumeRoutes);
 app.use('/api/resume-headline', resumeHeadlineRoutes);
 app.use('/api/key-skills', keySkillsRoutes);
