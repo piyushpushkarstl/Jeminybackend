@@ -6,6 +6,8 @@ const nodemailer = require('nodemailer');
 require('dotenv').config(); // Load environment variables from .env file
 const multer = require('multer');
 const { createUser, findUserByEmail, updateOtp } = require('../backend/models/user');
+const jwt = require('jsonwebtoken');
+
 
 // Email configuration for OTP
 const transporter = nodemailer.createTransport({
@@ -63,7 +65,6 @@ const upload = multer({
     limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB file size limit
 });
 
-// Signup Handler
 const signupUser = async (req, res) => {
     const { name, email, phone, password } = req.body;
 
@@ -95,12 +96,23 @@ const signupUser = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Generate OTP
-        const otp = String(crypto.randomInt(100000, 999999)); // Ensure it's a 6-digit string
+        const otp = String(crypto.randomInt(100000, 999999)); // Generates exactly a 6-digit OTP
+        console.log('Generated OTP:', otp, 'Length:', otp.length); // Debugging log to ensure correctness
 
-        const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // OTP expires in 5 minutes
+        // Generate OTP expiry time
+        const otp_expiry = new Date(Date.now() + 30 * 60 * 1000); // OTP expires in 30 minutes
 
-        // Save user data, including the OTP and expiry, to the database
-        const userId = await createUser(name, email, phone, hashedPassword, otp, otpExpiry);
+        // Insert user data, including OTP and otp_expiry, into the database
+        const sql = `
+            INSERT INTO signin (name, email, password, phone, resume, otp, otp_expiry)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        // Get a connection from the pool
+        const pool = require('../db'); // Your database connection pool
+        const resumeBuffer = req.file.buffer; // Save the uploaded resume as binary
+
+        await pool.query(sql, [name, email, hashedPassword, phone, resumeBuffer, otp, otp_expiry]);
 
         // Send OTP via email
         await transporter.sendMail({
@@ -112,14 +124,13 @@ const signupUser = async (req, res) => {
 
         res.status(201).json({
             message: 'User created successfully. OTP sent to your email for verification.',
-            userId,
         });
     } catch (error) {
         res.status(500).json({ error: 'Failed to create user', details: error.message });
     }
 };
 
-// OTP Verification Handler
+
 const verifyOtp = async (req, res) => {
     const { email, otp } = req.body;
 
@@ -138,9 +149,9 @@ const verifyOtp = async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const { otp: storedOtp, otp_expiry: otpExpiry } = user;
+        const { otp: storedOtp, otp_expiry } = user;
 
-        if (!storedOtp || new Date(otpExpiry) < new Date()) {
+        if (!storedOtp || new Date(otp_expiry) < new Date()) {
             return res.status(404).json({ error: 'OTP not found or expired' });
         }
 
@@ -156,6 +167,7 @@ const verifyOtp = async (req, res) => {
         res.status(500).json({ error: 'OTP verification failed', details: error.message });
     }
 };
+
 
 // Signin Handler (unchanged)
 const signinUser = async (req, res) => {
@@ -180,7 +192,18 @@ const signinUser = async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        res.status(200).json({ message: 'Login successful', userId: user.id });
+        // Generate a JWT token
+        const token = jwt.sign(
+            { userId: user.candidate_id, email: user.email }, // Payload
+            process.env.JWT_SECRET, // Secret key from your .env file
+            { expiresIn: '1h' } // Token expiration time
+        );
+
+        res.status(200).json({
+            message: 'Login successful',
+            userId: user.candidate_id,
+            token, // Return the token in the response
+        });
     } catch (error) {
         res.status(500).json({ error: 'Failed to login', details: error.message });
     }
