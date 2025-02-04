@@ -1,40 +1,66 @@
-const express = require('express');
-const { signupUser, signinUser, verifyOtp, upload } = require('../controllers/authController');
-const { verifyToken } = require('../middleware/authMiddleware'); // JWT middleware for protected routes
-const pool = require('../db'); // Import the MySQL connection pool
+/*const express = require('express');
+const multer = require('multer');
+const { signupUser, signinUser, VerifyOtp, getUserDetails, patchUser } = require('../controllers/authController');
+const { verifyToken } = require('../middleware/authMiddleware'); // Ensure the correct path
+const authController = require('../controllers/authController'); // Adjust the path if needed
+const pool = require('../db'); // Import pool from db.js
 
 const router = express.Router();
 
-// Signup route with file upload
+// Multer storage configuration
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/'); // Store in 'uploads/' folder
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + '-' + file.originalname); // Use timestamp for unique filenames
+    }
+});
+
+// Initialize Multer
+const upload = multer({ storage: storage });
+
+// Routes
+
+// Signup route
 router.post('/signup', upload.single('resume'), signupUser);
 
 // Signin route
 router.post('/signin', signinUser);
 
 // OTP verification route
-router.post('/verify-otp', verifyOtp);
+router.post('/verify-otp', VerifyOtp);
 
-// Example of a protected route (if needed in the future)
-router.get('/protected-route', verifyToken, (req, res) => {
-    res.status(200).json({ message: 'You have access to this protected route', user: req.user });
+// Get user details (protected)
+//router.get('/user-details', verifyToken, getUserDetails);
+router.get('/user-details/:id', authController.getUserDetails);
+/*router.get('/user-details/:id', (req, res, next) => {
+    console.log('Request received for user ID:', req.params.id);
+    next();
 });
 
-// Delete user route
-router.delete('/delete-user/:id', async (req, res) => {
-    const userId = req.params.id;
+// Update user details (protected)
+router.patch('/update-user/:id', verifyToken, patchUser);
 
-    try {
-        const sql = `DELETE FROM signin WHERE candidate_id = ?`;
-        const [result] = await pool.query(sql, [userId]);
+module.exports = router;
 
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
+console.log('AuthController:', authController);
+console.log(__dirname); */
 
-        res.status(200).json({ message: `User with ID ${userId} deleted successfully` });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to delete user', details: error.message });
-    }
-});
+
+// routes/authRoutes.js
+const express = require("express");
+const multer = require("multer");
+const authController = require("../controllers/authController");
+
+// First, verify the controller is loaded correctly
+console.log('authController:', authController); // Add this line to debug
+const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
+
+router.post("/signup", upload.single("resume"), authController.signup);
+router.post("/verify-otp", authController.verifyOtp);
+router.post("/signin", authController.signin);
+
 
 module.exports = router;
