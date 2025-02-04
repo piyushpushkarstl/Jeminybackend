@@ -1107,6 +1107,111 @@ async function getUserDetailsById(candidate_id) {
   };
 }
 
+exports.updateSpecificRecord = async (req, res) => {
+  try {
+    const { record_id } = req.params;
+    const updateData = req.body;
+
+    // Determine which model to update based on the type of record
+    let updatedRecord;
+    if (req.path.includes('education')) {
+      updatedRecord = await Education.update(updateData, {
+        where: { education_id: record_id }
+      });
+    } else if (req.path.includes('employment')) {
+      updatedRecord = await EmploymentDetails.update(updateData, {
+        where: { employment_id: record_id }
+      });
+    } else if (req.path.includes('projects')) {
+      updatedRecord = await Projects.update(updateData, {
+        where: { project_id: record_id }
+      });
+    } else {
+      return res.status(400).json({ error: 'Invalid record type' });
+    }
+
+    res.status(200).json({
+      message: 'Record updated successfully',
+      data: updatedRecord
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'An error occurred while updating the record',
+      details: error.message
+    });
+  }
+};
+
+exports.addNewRecord = async (req, res) => {
+  try {
+    const { candidate_id } = req.params;
+    const recordData = req.body;
+
+    let newRecord;
+    if (req.path.includes('education')) {
+      newRecord = await Education.create({
+        ...recordData,
+        candidate_id
+      });
+    } else if (req.path.includes('employment')) {
+      newRecord = await EmploymentDetails.create({
+        ...recordData,
+        candidate_id
+      });
+    } else if (req.path.includes('projects')) {
+      newRecord = await Projects.create({
+        ...recordData,
+        candidate_id
+      });
+    } else {
+      return res.status(400).json({ error: 'Invalid record type' });
+    }
+
+    res.status(201).json({
+      message: 'Record added successfully',
+      data: newRecord
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'An error occurred while adding the record',
+      details: error.message
+    });
+  }
+};
+
+exports.deleteRecord = async (req, res) => {
+  try {
+    const { record_id } = req.params;
+
+    let deletedRecord;
+    if (req.path.includes('education')) {
+      deletedRecord = await Education.destroy({
+        where: { education_id: record_id }
+      });
+    } else if (req.path.includes('employment')) {
+      deletedRecord = await EmploymentDetails.destroy({
+        where: { employment_id: record_id }
+      });
+    } else if (req.path.includes('projects')) {
+      deletedRecord = await Projects.destroy({
+        where: { project_id: record_id }
+      });
+    } else {
+      return res.status(400).json({ error: 'Invalid record type' });
+    }
+
+    res.status(200).json({
+      message: 'Record deleted successfully',
+      data: deletedRecord
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'An error occurred while deleting the record',
+      details: error.message
+    });
+  }
+};
+
 exports.getCandidatesByExperience = async (req, res) => {   
   try {     
     const { min_experience, max_experience } = req.query;      
